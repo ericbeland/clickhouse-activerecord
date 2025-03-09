@@ -299,11 +299,17 @@ module ActiveRecord
         ClickhouseActiverecord::SchemaDumper.create(self, options)
       end
 
+      def remove_database_name(sql)
+        name = @connection_config[:database].to_s
+        sql.gsub("#{name}.", '')
+      end
+
       # @param [String] table
       # @option [Boolean] single_line
       # @return [String]
       def show_create_table(table, single_line: true)
         sql = do_system_execute("SHOW CREATE TABLE `#{table}`")['data'].try(:first).try(:first)
+        sql = remove_database_name(sql)
         single_line ? sql.squish : sql
       end
 
@@ -369,6 +375,12 @@ module ActiveRecord
           process_response(res, DEFAULT_RESPONSE_FORMAT)
         end
       end
+
+      def db_env_to_interpolated_rails_env(statement)
+        # This regex matches "_dev." or "_development." (case-insensitive)
+        statement.gsub(/(_(?:dev|development))\./i, '_#{Rails.env}.')
+      end
+
 
       def drop_functions
         functions.each do |function|
